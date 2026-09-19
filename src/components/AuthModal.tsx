@@ -14,7 +14,8 @@ import {
   ArrowRight,
   Loader2,
   Copy,
-  Check
+  Check,
+  ExternalLink
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
@@ -27,6 +28,7 @@ export const AuthModal: React.FC = () => {
     signInWithEmail,
     signUpWithEmail,
     signInWithGoogle,
+    sendPasswordReset,
   } = useAuth();
 
   const [activeTab, setActiveTab] = useState<'signin' | 'signup'>(authModalMode || 'signin');
@@ -35,6 +37,11 @@ export const AuthModal: React.FC = () => {
   const [errorMsg, setErrorMsg] = useState('');
   const [unauthorizedDomain, setUnauthorizedDomain] = useState<string | null>(null);
   const [copiedDomain, setCopiedDomain] = useState(false);
+  const [suggestRegister, setSuggestRegister] = useState(false);
+  const [isForgotPassword, setIsForgotPassword] = useState(false);
+  const [resetSent, setResetSent] = useState(false);
+  const [resetLoading, setResetLoading] = useState(false);
+  const [resetSuccessMsg, setResetSuccessMsg] = useState('');
 
   // Form states
   const [name, setName] = useState('');
@@ -48,6 +55,9 @@ export const AuthModal: React.FC = () => {
     setActiveTab(authModalMode);
     setErrorMsg('');
     setUnauthorizedDomain(null);
+    setSuggestRegister(false);
+    setIsForgotPassword(false);
+    setResetSuccessMsg('');
   }, [authModalMode, authModalOpen]);
 
   if (!authModalOpen) return null;
@@ -56,6 +66,9 @@ export const AuthModal: React.FC = () => {
     setActiveTab(tab);
     setErrorMsg('');
     setUnauthorizedDomain(null);
+    setSuggestRegister(false);
+    setIsForgotPassword(false);
+    setResetSuccessMsg('');
   };
 
   const handleCopyDomain = () => {
@@ -70,6 +83,7 @@ export const AuthModal: React.FC = () => {
     e.preventDefault();
     setErrorMsg('');
     setUnauthorizedDomain(null);
+    setSuggestRegister(false);
 
     if (!email.trim() || !password) {
       setErrorMsg('Please enter both your email address and password.');
@@ -87,7 +101,8 @@ export const AuthModal: React.FC = () => {
         err.code === 'auth/user-not-found'
       ) {
         console.warn('Sign In: Invalid credentials provided for user:', email.trim());
-        message = 'Invalid email or password. If you are a new patient, please register an account first.';
+        message = 'Invalid email or password. If you are a new patient, please register an account below.';
+        setSuggestRegister(true);
       } else if (err.code === 'auth/too-many-requests') {
         console.warn('Sign In: Rate limited by Firebase Auth');
         message = 'Too many failed sign-in attempts. Please wait a moment or try again later.';
@@ -104,6 +119,29 @@ export const AuthModal: React.FC = () => {
       setErrorMsg(message);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handlePasswordReset = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setErrorMsg('');
+    setResetSuccessMsg('');
+
+    if (!email.trim() || !email.includes('@')) {
+      setErrorMsg('Please enter a valid email address to receive your password reset link.');
+      return;
+    }
+
+    setResetLoading(true);
+    try {
+      await sendPasswordReset(email.trim());
+      setResetSent(true);
+      setResetSuccessMsg(`A password reset link has been dispatched to ${email.trim()}. Please check your email inbox.`);
+    } catch (err: any) {
+      console.error('Password reset error:', err);
+      setErrorMsg(err.message || 'Unable to send password reset email. Please verify the email address.');
+    } finally {
+      setResetLoading(false);
     }
   };
 
@@ -265,45 +303,98 @@ export const AuthModal: React.FC = () => {
 
           {/* Error Message */}
           {errorMsg && (
-            <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl text-xs text-rose-700 flex items-start gap-2 animate-in fade-in duration-150">
-              <AlertCircle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
-              <span>{errorMsg}</span>
+            <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl text-xs text-rose-700 space-y-2 animate-in fade-in duration-150">
+              <div className="flex items-start gap-2">
+                <AlertCircle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
+                <span>{errorMsg}</span>
+              </div>
+              {suggestRegister && (
+                <div className="pt-2 border-t border-rose-200/80 flex items-center justify-between gap-2">
+                  <span className="text-[11px] text-rose-800 font-medium">New to WECare Hospitals?</span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setConfirmPassword(password);
+                      setActiveTab('signup');
+                      setErrorMsg('');
+                      setSuggestRegister(false);
+                    }}
+                    className="px-2.5 py-1 bg-teal-600 hover:bg-teal-700 text-white font-bold text-[11px] rounded-lg transition-colors shadow-xs shrink-0 flex items-center gap-1"
+                  >
+                    <span>Register Account with this Email</span>
+                    <ArrowRight className="w-3 h-3" />
+                  </button>
+                </div>
+              )}
             </div>
           )}
 
           {/* Dedicated Domain Authorization Assistance */}
           {unauthorizedDomain && (
-            <div className="p-3.5 bg-amber-50/90 border border-amber-300/80 rounded-xl text-xs text-amber-950 space-y-2 animate-in fade-in duration-200">
+            <div className="p-3.5 bg-amber-50/90 border border-amber-300/80 rounded-xl text-xs text-amber-950 space-y-2.5 animate-in fade-in duration-200">
               <div className="font-semibold flex items-center gap-1.5 text-amber-900">
                 <ShieldCheck className="w-4 h-4 text-amber-700" />
-                <span>How to authorize Google Sign-In:</span>
+                <span>Google Sign-In: 1-Step Domain Authorization</span>
               </div>
               <p className="text-[11px] text-amber-800 leading-relaxed">
-                Add this preview URL to Firebase Console under <strong>Authentication &rarr; Settings &rarr; Authorized domains</strong>:
+                Google OAuth requires authorizing your GitHub Pages domain in your Firebase project (<code className="bg-amber-100 px-1 py-0.5 rounded font-mono text-amber-900">wecare-hospitals-9892d</code>).
               </p>
-              <div className="flex items-center gap-2 bg-white/90 px-2.5 py-1.5 rounded-lg border border-amber-200 font-mono text-[11px] text-slate-800">
-                <span className="truncate flex-1">{unauthorizedDomain}</span>
+              
+              <div className="space-y-1.5 bg-white/90 p-2.5 rounded-lg border border-amber-200 text-[11px] text-slate-800">
+                <p className="font-semibold text-slate-900">Follow these 3 quick steps:</p>
+                <ol className="list-decimal list-inside space-y-1 text-slate-700">
+                  <li>Click <strong>Open Firebase Settings</strong> below</li>
+                  <li>Under <em>Authorized domains</em>, click <strong>Add domain</strong></li>
+                  <li>Paste <span className="font-mono font-bold text-teal-800">{unauthorizedDomain}</span> and click <strong>Add</strong></li>
+                </ol>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <div className="flex-1 flex items-center gap-1.5 bg-white/90 px-2.5 py-1.5 rounded-lg border border-amber-200 font-mono text-[11px] text-slate-800 overflow-hidden">
+                  <span className="truncate">{unauthorizedDomain}</span>
+                  <button
+                    type="button"
+                    onClick={handleCopyDomain}
+                    className="ml-auto px-2 py-0.5 bg-amber-100 hover:bg-amber-200 text-amber-900 font-sans font-semibold text-[10px] rounded flex items-center gap-1 transition-colors shrink-0"
+                  >
+                    {copiedDomain ? (
+                      <>
+                        <Check className="w-3 h-3 text-emerald-600" />
+                        <span>Copied!</span>
+                      </>
+                    ) : (
+                      <>
+                        <Copy className="w-3 h-3" />
+                        <span>Copy</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+
+                <a
+                  href="https://console.firebase.google.com/project/wecare-hospitals-9892d/authentication/settings"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="px-3 py-1.5 bg-amber-600 hover:bg-amber-700 text-white font-semibold text-[11px] rounded-lg flex items-center gap-1.5 transition-colors shadow-xs shrink-0"
+                >
+                  <span>Open Settings</span>
+                  <ExternalLink className="w-3 h-3" />
+                </a>
+              </div>
+
+              <div className="pt-1 flex items-center justify-between border-t border-amber-200/60 text-[11px]">
+                <span className="text-amber-800">Prefer not to configure domains?</span>
                 <button
                   type="button"
-                  onClick={handleCopyDomain}
-                  className="px-2 py-1 bg-amber-100 hover:bg-amber-200 text-amber-900 font-sans font-semibold text-[10px] rounded flex items-center gap-1 transition-colors shrink-0"
+                  onClick={() => {
+                    setUnauthorizedDomain(null);
+                    setErrorMsg('');
+                  }}
+                  className="text-teal-700 hover:text-teal-900 font-bold transition-colors"
                 >
-                  {copiedDomain ? (
-                    <>
-                      <Check className="w-3 h-3 text-emerald-600" />
-                      <span>Copied!</span>
-                    </>
-                  ) : (
-                    <>
-                      <Copy className="w-3 h-3" />
-                      <span>Copy</span>
-                    </>
-                  )}
+                  Use Email & Password below &darr;
                 </button>
               </div>
-              <p className="text-[11px] text-amber-900 font-medium pt-1">
-                Tip: You can also simply use <strong>Email & Password</strong> below to sign in or register immediately without domain setup!
-              </p>
             </div>
           )}
 
@@ -343,7 +434,85 @@ export const AuthModal: React.FC = () => {
           </div>
 
           {/* Form Content */}
-          {activeTab === 'signin' ? (
+          {isForgotPassword ? (
+            <form onSubmit={handlePasswordReset} className="space-y-4">
+              {resetSuccessMsg ? (
+                <div className="p-3.5 bg-emerald-50 border border-emerald-200 rounded-xl text-xs text-emerald-800 space-y-2.5">
+                  <div className="flex items-start gap-2">
+                    <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+                    <span>{resetSuccessMsg}</span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsForgotPassword(false);
+                      setResetSuccessMsg('');
+                      setErrorMsg('');
+                    }}
+                    className="w-full mt-2 py-2 px-3 bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs rounded-lg transition-colors"
+                  >
+                    Back to Sign In
+                  </button>
+                </div>
+              ) : (
+                <>
+                  <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-700">
+                    <span className="font-semibold block mb-0.5">Reset Patient Password</span>
+                    <span>Enter your registered email address to receive a password reset link.</span>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-700 mb-1">
+                      Email Address
+                    </label>
+                    <div className="relative">
+                      <Mail className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
+                      <input
+                        type="email"
+                        required
+                        placeholder="patient@example.com"
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
+                        className="w-full pl-9 pr-3 py-2 text-xs sm:text-sm rounded-xl border border-slate-300 text-slate-900 placeholder:text-slate-400 focus:outline-hidden focus:border-teal-500 focus:ring-1 focus:ring-teal-500"
+                      />
+                    </div>
+                  </div>
+
+                  <button
+                    type="submit"
+                    disabled={resetLoading}
+                    className="w-full py-2.5 px-4 bg-teal-600 hover:bg-teal-700 text-white text-xs sm:text-sm font-bold rounded-xl shadow-md transition-all flex items-center justify-center gap-2 active:scale-98 disabled:opacity-60"
+                  >
+                    {resetLoading ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        <span>Sending Reset Link...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Mail className="w-4 h-4" />
+                        <span>Send Password Reset Link</span>
+                      </>
+                    )}
+                  </button>
+
+                  <div className="text-center pt-1">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsForgotPassword(false);
+                        setErrorMsg('');
+                        setResetSuccessMsg('');
+                      }}
+                      className="text-xs text-teal-700 hover:text-teal-900 font-semibold"
+                    >
+                      &larr; Back to Sign In
+                    </button>
+                  </div>
+                </>
+              )}
+            </form>
+          ) : activeTab === 'signin' ? (
             <form onSubmit={handleSignIn} className="space-y-4">
               <div>
                 <label className="block text-xs font-semibold text-slate-700 mb-1">
@@ -363,9 +532,22 @@ export const AuthModal: React.FC = () => {
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">
-                  Password
-                </label>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="text-xs font-semibold text-slate-700">
+                    Password
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsForgotPassword(true);
+                      setErrorMsg('');
+                      setResetSuccessMsg('');
+                    }}
+                    className="text-[11px] text-teal-600 hover:text-teal-800 font-medium transition-colors"
+                  >
+                    Forgot password?
+                  </button>
+                </div>
                 <div className="relative">
                   <Lock className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
                   <input

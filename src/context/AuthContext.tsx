@@ -6,10 +6,23 @@ import {
   createUserWithEmailAndPassword,
   signInWithPopup,
   signOut as firebaseSignOut,
-  updateProfile
+  updateProfile,
+  sendPasswordResetEmail
 } from 'firebase/auth';
 import { auth, googleProvider, getUserProfile, saveUserProfile } from '../firebase';
 import { UserProfile } from '../types/auth';
+
+export const ADMIN_EMAILS = [
+  'saaketh7619@gmail.com',
+  'admin@wecare.org',
+  'hospital.admin@wecare.org'
+];
+
+export const isAuthorizedAdminEmail = (email?: string | null): boolean => {
+  if (!email) return false;
+  const normalized = email.trim().toLowerCase();
+  return ADMIN_EMAILS.some(admin => admin.toLowerCase() === normalized) || normalized.endsWith('@wecare.org');
+};
 
 export const ADMIN_EMAIL = 'saaketh7619@gmail.com';
 
@@ -25,6 +38,7 @@ interface AuthContextType {
   signInWithEmail: (email: string, pass: string) => Promise<void>;
   signUpWithEmail: (name: string, email: string, pass: string, phone: string) => Promise<void>;
   signInWithGoogle: () => Promise<void>;
+  sendPasswordReset: (email: string) => Promise<void>;
   logout: () => Promise<void>;
 }
 
@@ -35,8 +49,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // Admin portal is strictly restricted: ONLY after sign in AND ONLY for admin email (saaketh7619@gmail.com)
-  const isAdmin = Boolean(user && user.email?.trim().toLowerCase() === ADMIN_EMAIL.trim().toLowerCase());
+  // Admin access strictly checked via role or authorized admin email
+  const isAdmin = Boolean(user && (userProfile?.role === 'admin' || isAuthorizedAdminEmail(user.email)));
 
   // Modal State
   const [authModalOpen, setAuthModalOpen] = useState(false);
@@ -48,7 +62,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
       setUser(currentUser);
       if (currentUser) {
-        const isUserAdmin = currentUser.email?.toLowerCase() === ADMIN_EMAIL.toLowerCase();
+        const isUserAdmin = isAuthorizedAdminEmail(currentUser.email);
         try {
           const profile = await getUserProfile(currentUser.uid);
           if (profile) {
@@ -244,6 +258,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
+  // Send Password Reset Email
+  const sendPasswordReset = async (email: string) => {
+    await sendPasswordResetEmail(auth, email.trim());
+  };
+
   // Log Out
   const logout = async () => {
     await firebaseSignOut(auth);
@@ -265,6 +284,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         signInWithEmail,
         signUpWithEmail,
         signInWithGoogle,
+        sendPasswordReset,
         logout,
       }}
     >

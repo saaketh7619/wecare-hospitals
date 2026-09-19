@@ -33,7 +33,7 @@ import {
   ExternalLink,
   MessageSquare
 } from 'lucide-react';
-import { useAuth, ADMIN_EMAIL } from '../context/AuthContext';
+import { useAuth } from '../context/AuthContext';
 import { DEPARTMENTS, DOCTORS, HOSPITAL_INFO } from '../data/hospitalData';
 import { Appointment, Doctor } from '../types/hospital';
 import {
@@ -48,14 +48,18 @@ interface AdminPortalProps {
 }
 
 export const AdminPortal: React.FC<AdminPortalProps> = ({ onBackToSite }) => {
-  const { user, userProfile, isAdmin, signInWithEmail, logout } = useAuth();
+  const { user, userProfile, isAdmin, signInWithEmail, sendPasswordReset, logout } = useAuth();
 
   // Login form states (for unauthenticated or non-admin view)
-  const [adminEmail, setAdminEmail] = useState(ADMIN_EMAIL);
+  const [adminEmail, setAdminEmail] = useState('');
   const [adminPassword, setAdminPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [loginLoading, setLoginLoading] = useState(false);
   const [loginError, setLoginError] = useState('');
+  const [forgotPasswordMode, setForgotPasswordMode] = useState(false);
+  const [resetSent, setResetSent] = useState(false);
+  const [resetLoading, setResetLoading] = useState(false);
+  const [resetMsg, setResetMsg] = useState('');
 
   // Portal view states
   const [activeTab, setActiveTab] = useState<'bookings' | 'add-booking' | 'analytics'>('bookings');
@@ -147,11 +151,28 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onBackToSite }) => {
     }
   };
 
-  // Quick helper to autofill admin credentials for testing
-  const handleAutofillAdmin = () => {
-    setAdminEmail(ADMIN_EMAIL);
-    setAdminPassword('sa7619');
+  // Handle sending password reset email for administrators
+  const handleAdminPasswordReset = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setResetMsg('');
     setLoginError('');
+
+    if (!adminEmail.trim()) {
+      setLoginError('Please enter your administrator email address first.');
+      return;
+    }
+
+    setResetLoading(true);
+    try {
+      await sendPasswordReset(adminEmail.trim());
+      setResetSent(true);
+      setResetMsg(`Password reset instructions have been dispatched to ${adminEmail.trim()}. Please check your inbox.`);
+    } catch (err: any) {
+      console.error('Password reset error:', err);
+      setLoginError(err.message || 'Unable to send password reset email. Please verify the email address.');
+    } finally {
+      setResetLoading(false);
+    }
   };
 
   // Status update
@@ -385,7 +406,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onBackToSite }) => {
                   <div>
                     <span className="font-bold block text-sm">Patient Account Detected</span>
                     <p className="mt-1 text-amber-800">
-                      You are currently signed in as <code className="bg-amber-100 px-1 py-0.5 rounded font-mono">{user.email}</code>. Admin access requires credentials for <strong className="text-slate-900">{ADMIN_EMAIL}</strong>.
+                      You are currently signed in as <code className="bg-amber-100 px-1 py-0.5 rounded font-mono">{user.email}</code>. The command portal requires an authorized hospital administrator account.
                     </p>
                   </div>
                 </div>
@@ -394,11 +415,13 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onBackToSite }) => {
                   <button
                     onClick={async () => {
                       await logout();
-                      handleAutofillAdmin();
+                      setAdminEmail('');
+                      setAdminPassword('');
+                      setLoginError('');
                     }}
                     className="w-full py-2.5 px-4 bg-teal-600 hover:bg-teal-700 text-white text-xs sm:text-sm font-bold rounded-xl transition-all shadow-md shadow-teal-600/20 flex items-center justify-center gap-2"
                   >
-                    <span>Switch to Administrator Account</span>
+                    <span>Sign Out & Enter Admin Credentials</span>
                   </button>
                   <button
                     onClick={onBackToSite}
@@ -408,6 +431,76 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onBackToSite }) => {
                   </button>
                 </div>
               </div>
+            ) : forgotPasswordMode ? (
+              <form onSubmit={handleAdminPasswordReset} className="space-y-4">
+                {loginError && (
+                  <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl text-xs text-rose-700 flex items-start gap-2 animate-in fade-in duration-150">
+                    <AlertCircle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
+                    <span>{loginError}</span>
+                  </div>
+                )}
+
+                {resetMsg && (
+                  <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl text-xs text-emerald-800 flex items-start gap-2 animate-in fade-in duration-150">
+                    <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+                    <span>{resetMsg}</span>
+                  </div>
+                )}
+
+                <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-700">
+                  <span className="font-semibold block mb-0.5">Reset Administrator Password</span>
+                  <span>Enter your hospital administrator email to receive a secure password reset link.</span>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">
+                    Admin Email Address
+                  </label>
+                  <div className="relative">
+                    <Mail className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
+                    <input
+                      type="email"
+                      required
+                      value={adminEmail}
+                      onChange={(e) => setAdminEmail(e.target.value)}
+                      placeholder="admin@wecare.org"
+                      className="w-full pl-9 pr-3 py-2 text-xs sm:text-sm rounded-xl border border-slate-300 text-slate-900 placeholder:text-slate-400 focus:outline-hidden focus:border-teal-500 focus:ring-1 focus:ring-teal-500"
+                    />
+                  </div>
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={resetLoading}
+                  className="w-full py-2.5 px-4 bg-teal-600 hover:bg-teal-700 text-white text-xs sm:text-sm font-bold rounded-xl shadow-md transition-all flex items-center justify-center gap-2 disabled:opacity-60"
+                >
+                  {resetLoading ? (
+                    <>
+                      <RefreshCw className="w-4 h-4 animate-spin" />
+                      <span>Sending Reset Link...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Mail className="w-4 h-4" />
+                      <span>Send Password Reset Link</span>
+                    </>
+                  )}
+                </button>
+
+                <div className="pt-2 text-center">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setForgotPasswordMode(false);
+                      setLoginError('');
+                      setResetMsg('');
+                    }}
+                    className="text-xs text-teal-700 hover:text-teal-900 font-semibold transition-colors"
+                  >
+                    &larr; Back to Admin Sign In
+                  </button>
+                </div>
+              </form>
             ) : (
               <form onSubmit={handleAdminLogin} className="space-y-4">
                 {loginError && (
@@ -416,21 +509,6 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onBackToSite }) => {
                     <span>{loginError}</span>
                   </div>
                 )}
-
-                {/* Convenient quick fill card for demo/testing */}
-                <div className="p-3 bg-teal-50/80 border border-teal-200/80 rounded-xl text-xs text-teal-900 flex items-center justify-between gap-2">
-                  <div>
-                    <span className="font-bold block">Hospital Admin Credentials</span>
-                    <span className="text-[11px] text-teal-700">Email: {ADMIN_EMAIL}</span>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={handleAutofillAdmin}
-                    className="px-2.5 py-1.5 bg-teal-600 hover:bg-teal-700 text-white text-[11px] font-bold rounded-lg transition-colors shadow-xs shrink-0"
-                  >
-                    Fill Credentials
-                  </button>
-                </div>
 
                 <div>
                   <label className="block text-xs font-semibold text-slate-700 mb-1">
@@ -450,9 +528,22 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onBackToSite }) => {
                 </div>
 
                 <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">
-                    Admin Password
-                  </label>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="text-xs font-semibold text-slate-700">
+                      Admin Password
+                    </label>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setForgotPasswordMode(true);
+                        setLoginError('');
+                        setResetMsg('');
+                      }}
+                      className="text-[11px] text-teal-600 hover:text-teal-800 font-medium transition-colors"
+                    >
+                      Forgot password?
+                    </button>
+                  </div>
                   <div className="relative">
                     <Lock className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
                     <input
@@ -590,7 +681,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onBackToSite }) => {
                 </div>
                 <div className="text-left text-[11px]">
                   <p className="font-bold text-slate-200 leading-none">Super Admin</p>
-                  <p className="text-[10px] text-teal-400 font-mono leading-tight">{ADMIN_EMAIL}</p>
+                  <p className="text-[10px] text-teal-400 font-mono leading-tight">{user?.email || 'admin@wecare.org'}</p>
                 </div>
               </div>
 
