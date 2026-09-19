@@ -10,8 +10,8 @@ service cloud.firestore {
       return isSignedIn() && (
         request.auth.uid == '3Zy82h75J8eWhGjEPNk5Eyxnvk63' ||
         ('email' in request.auth.token && (
-          request.auth.token.email == 'saaketh7619@gmail.com' ||
-          request.auth.token.email.lower() == 'saaketh7619@gmail.com'
+          request.auth.token.email.matches('.*@wecare\\.org$') ||
+          request.auth.token.email == 'admin@wecare.org'
         ))
       );
     }

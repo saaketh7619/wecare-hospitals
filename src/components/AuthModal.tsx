@@ -513,7 +513,7 @@ export const AuthModal: React.FC = () => {
               )}
             </form>
           ) : activeTab === 'signin' ? (
-            <form onSubmit={handleSignIn} className="space-y-4">
+            <form onSubmit={handleSignIn} className="space-y-4" autoComplete="off">
               <div>
                 <label className="block text-xs font-semibold text-slate-700 mb-1">
                   Email Address
@@ -522,6 +522,8 @@ export const AuthModal: React.FC = () => {
                   <Mail className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
                   <input
                     type="email"
+                    name="auth_email_input"
+                    autoComplete="off"
                     required
                     placeholder="patient@example.com"
                     value={email}
@@ -552,6 +554,8 @@ export const AuthModal: React.FC = () => {
                   <Lock className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
                   <input
                     type={showPassword ? 'text' : 'password'}
+                    name="auth_password_input"
+                    autoComplete="new-password"
                     required
                     placeholder="••••••••"
                     value={password}

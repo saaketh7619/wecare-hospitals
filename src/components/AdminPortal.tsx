@@ -502,7 +502,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onBackToSite }) => {
                 </div>
               </form>
             ) : (
-              <form onSubmit={handleAdminLogin} className="space-y-4">
+              <form onSubmit={handleAdminLogin} className="space-y-4" autoComplete="off">
                 {loginError && (
                   <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl text-xs text-rose-700 flex items-start gap-2 animate-in fade-in duration-150">
                     <AlertCircle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
@@ -518,6 +518,8 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onBackToSite }) => {
                     <Mail className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
                     <input
                       type="email"
+                      name="admin_staff_email"
+                      autoComplete="off"
                       required
                       value={adminEmail}
                       onChange={(e) => setAdminEmail(e.target.value)}
@@ -548,6 +550,8 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onBackToSite }) => {
                     <Lock className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
                     <input
                       type={showPassword ? 'text' : 'password'}
+                      name="admin_staff_password"
+                      autoComplete="new-password"
                       required
                       value={adminPassword}
                       onChange={(e) => setAdminPassword(e.target.value)}

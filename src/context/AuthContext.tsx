@@ -13,9 +13,9 @@ import { auth, googleProvider, getUserProfile, saveUserProfile } from '../fireba
 import { UserProfile } from '../types/auth';
 
 export const ADMIN_EMAILS = [
-  'saaketh7619@gmail.com',
   'admin@wecare.org',
-  'hospital.admin@wecare.org'
+  'hospital.admin@wecare.org',
+  'superuser@wecare.org'
 ];
 
 export const isAuthorizedAdminEmail = (email?: string | null): boolean => {
@@ -24,7 +24,7 @@ export const isAuthorizedAdminEmail = (email?: string | null): boolean => {
   return ADMIN_EMAILS.some(admin => admin.toLowerCase() === normalized) || normalized.endsWith('@wecare.org');
 };
 
-export const ADMIN_EMAIL = 'saaketh7619@gmail.com';
+export const ADMIN_EMAIL = 'admin@wecare.org';
 
 interface AuthContextType {
   user: FirebaseUser | null;
