@@ -8,6 +8,7 @@ export default defineConfig(() => {
     base: './',
     plugins: [react(), tailwindcss()],
     resolve: {
+      preserveSymlinks: true,
       alias: {
         '@': path.resolve(__dirname, '.'),
       },
