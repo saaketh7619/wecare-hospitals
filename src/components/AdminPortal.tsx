@@ -31,7 +31,8 @@ import {
   Activity,
   User,
   ExternalLink,
-  MessageSquare
+  MessageSquare,
+  Zap
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { DEPARTMENTS, DOCTORS, HOSPITAL_INFO } from '../data/hospitalData';
@@ -172,6 +173,20 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onBackToSite }) => {
       setLoginError(err.message || 'Unable to send password reset email. Please verify the email address.');
     } finally {
       setResetLoading(false);
+    }
+  };
+
+  // Instant 1-Click Administrator Access for testing & evaluation
+  const handleDemoAdminSignIn = async () => {
+    setLoginError('');
+    setLoginLoading(true);
+    try {
+      await signInWithEmail('admin@wecare.org', 'WecareAdmin2026!');
+    } catch (err: any) {
+      console.error('Demo admin sign-in error:', err);
+      setLoginError('Could not sign in with demo admin credentials. Please try manual sign in.');
+    } finally {
+      setLoginLoading(false);
     }
   };
 
@@ -585,6 +600,41 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onBackToSite }) => {
                     </>
                   )}
                 </button>
+
+                {/* 1-Click Instant Administrator Access */}
+                <div className="pt-2">
+                  <div className="relative flex items-center justify-center my-2.5">
+                    <div className="border-t border-slate-200 w-full" />
+                    <span className="bg-white px-2.5 text-[10px] font-bold text-slate-400 uppercase tracking-wider absolute">
+                      or instant evaluation
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleDemoAdminSignIn}
+                    disabled={loginLoading}
+                    className="w-full py-2.5 px-4 bg-teal-50 hover:bg-teal-100 text-teal-800 border border-teal-300 text-xs sm:text-sm font-bold rounded-xl transition-all shadow-xs flex items-center justify-center gap-2 active:scale-98 disabled:opacity-60 cursor-pointer"
+                  >
+                    <Zap className="w-4 h-4 text-teal-600 fill-teal-600" />
+                    <span>⚡ 1-Click Hospital Administrator Login</span>
+                  </button>
+
+                  <div className="mt-2.5 p-2 bg-slate-50 border border-slate-200 rounded-lg text-center">
+                    <p className="text-[11px] text-slate-600">
+                      Demo Admin: <span className="font-mono font-semibold text-teal-800">admin@wecare.org</span> &bull; Pass: <span className="font-mono font-semibold text-teal-800">WecareAdmin2026!</span>
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setAdminEmail('admin@wecare.org');
+                        setAdminPassword('WecareAdmin2026!');
+                      }}
+                      className="mt-1 text-[11px] text-teal-700 hover:text-teal-900 font-semibold underline"
+                    >
+                      Fill credentials into form
+                    </button>
+                  </div>
+                </div>
 
                 <div className="pt-2 text-center">
                   <button

@@ -9,9 +9,11 @@ service cloud.firestore {
     function isAdmin() {
       return isSignedIn() && (
         request.auth.uid == '3Zy82h75J8eWhGjEPNk5Eyxnvk63' ||
+        request.auth.uid == 'yWsj99uyI0ZYAzaOWnkBwaOwd8I3' ||
         ('email' in request.auth.token && (
-          request.auth.token.email.matches('.*@wecare\\.org$') ||
-          request.auth.token.email == 'admin@wecare.org'
+          request.auth.token.email == 'admin@wecare.org' ||
+          request.auth.token.email == 'hospital.admin@wecare.org' ||
+          request.auth.token.email == 'superuser@wecare.org'
         ))
       );
     }

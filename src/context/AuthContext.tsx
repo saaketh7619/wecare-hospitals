@@ -21,7 +21,7 @@ export const ADMIN_EMAILS = [
 export const isAuthorizedAdminEmail = (email?: string | null): boolean => {
   if (!email) return false;
   const normalized = email.trim().toLowerCase();
-  return ADMIN_EMAILS.some(admin => admin.toLowerCase() === normalized) || normalized.endsWith('@wecare.org');
+  return ADMIN_EMAILS.some(admin => admin.toLowerCase() === normalized);
 };
 
 export const ADMIN_EMAIL = 'admin@wecare.org';

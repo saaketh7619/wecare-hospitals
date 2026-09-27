@@ -15,7 +15,8 @@ import {
   Loader2,
   Copy,
   Check,
-  ExternalLink
+  ExternalLink,
+  Zap
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
@@ -38,6 +39,7 @@ export const AuthModal: React.FC = () => {
   const [unauthorizedDomain, setUnauthorizedDomain] = useState<string | null>(null);
   const [copiedDomain, setCopiedDomain] = useState(false);
   const [suggestRegister, setSuggestRegister] = useState(false);
+  const [emailAlreadyInUse, setEmailAlreadyInUse] = useState(false);
   const [isForgotPassword, setIsForgotPassword] = useState(false);
   const [resetSent, setResetSent] = useState(false);
   const [resetLoading, setResetLoading] = useState(false);
@@ -56,6 +58,7 @@ export const AuthModal: React.FC = () => {
     setErrorMsg('');
     setUnauthorizedDomain(null);
     setSuggestRegister(false);
+    setEmailAlreadyInUse(false);
     setIsForgotPassword(false);
     setResetSuccessMsg('');
   }, [authModalMode, authModalOpen]);
@@ -67,6 +70,7 @@ export const AuthModal: React.FC = () => {
     setErrorMsg('');
     setUnauthorizedDomain(null);
     setSuggestRegister(false);
+    setEmailAlreadyInUse(false);
     setIsForgotPassword(false);
     setResetSuccessMsg('');
   };
@@ -178,7 +182,8 @@ export const AuthModal: React.FC = () => {
       console.error('Sign Up Error:', err);
       let message = 'Unable to create account. Please try again.';
       if (err.code === 'auth/email-already-in-use') {
-        message = 'This email is already registered! Please switch to Sign In.';
+        message = 'This email is already registered! Please sign in with your password, or reset it if forgotten.';
+        setEmailAlreadyInUse(true);
       } else if (err.code === 'auth/weak-password') {
         message = 'Password should be at least 6 characters.';
       } else if (err.code === 'auth/invalid-email') {
@@ -194,6 +199,59 @@ export const AuthModal: React.FC = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleDemoPatientSignIn = async () => {
+    setErrorMsg('');
+    setUnauthorizedDomain(null);
+    setLoading(true);
+    try {
+      await signInWithEmail('patient@wecare.org', 'WecarePatient2026!');
+    } catch (err: any) {
+      console.error('Demo patient sign-in error:', err);
+      setErrorMsg('Could not sign in with demo patient account. Please try regular email & password.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDirectPasswordReset = async (targetEmail: string) => {
+    if (!targetEmail.trim() || !targetEmail.includes('@')) {
+      setErrorMsg('Please enter a valid email address.');
+      return;
+    }
+    setResetLoading(true);
+    try {
+      await sendPasswordReset(targetEmail.trim());
+      setResetSuccessMsg(`A password reset link has been dispatched to ${targetEmail.trim()}. Please check your email inbox.`);
+      setIsForgotPassword(true);
+      setErrorMsg('');
+      setEmailAlreadyInUse(false);
+    } catch (err: any) {
+      console.error('Password reset error:', err);
+      setErrorMsg(err.message || 'Unable to send password reset email.');
+    } finally {
+      setResetLoading(false);
+    }
+  };
+
+  const handleFillDemoPatient = () => {
+    setEmail('patient@wecare.org');
+    setPassword('WecarePatient2026!');
+    setErrorMsg('');
+    setSuggestRegister(false);
+    setEmailAlreadyInUse(false);
+  };
+
+  const handleClearForm = () => {
+    setEmail('');
+    setPassword('');
+    setConfirmPassword('');
+    setName('');
+    setPhone('');
+    setErrorMsg('');
+    setSuggestRegister(false);
+    setEmailAlreadyInUse(false);
   };
 
   const handleGoogleAuth = async () => {
@@ -289,14 +347,38 @@ export const AuthModal: React.FC = () => {
         </div>
 
         {/* Body Form */}
-        <div className="p-6 space-y-5">
+        <div className="p-6 space-y-4">
+          {/* 1-Click Instant Patient Demo Access */}
+          <div className="p-3.5 bg-gradient-to-r from-teal-50 via-emerald-50 to-teal-50 rounded-xl border border-teal-200 shadow-xs">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <div className="flex items-center gap-1.5 font-bold text-xs text-teal-950">
+                  <Zap className="w-4 h-4 text-teal-600 fill-teal-600" />
+                  <span>Instant Patient Demo Access</span>
+                </div>
+                <p className="text-[11px] text-teal-800 mt-0.5 leading-tight">
+                  1-Click sign in as a verified patient to test appointments & records immediately.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={handleDemoPatientSignIn}
+                disabled={loading}
+                className="px-3.5 py-2 bg-teal-600 hover:bg-teal-700 text-white font-bold text-xs rounded-xl shadow-xs shrink-0 flex items-center gap-1.5 transition-all active:scale-95 disabled:opacity-60 cursor-pointer"
+              >
+                {loading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Zap className="w-3.5 h-3.5 fill-current" />}
+                <span>1-Click Sign In</span>
+              </button>
+            </div>
+          </div>
+
           {/* Quick Notice for Booking Gate */}
-          <div className="p-3 bg-teal-50/80 rounded-xl border border-teal-200/80 flex items-start gap-2.5 text-xs text-teal-900">
+          <div className="p-2.5 bg-slate-50 rounded-xl border border-slate-200/80 flex items-start gap-2.5 text-xs text-slate-700">
             <Calendar className="w-4 h-4 text-teal-600 shrink-0 mt-0.5" />
             <div>
-              <span className="font-semibold block">Verified Appointment Booking</span>
-              <span>
-                An authenticated account connects your bookings directly to your medical file and enables real-time status updates.
+              <span className="font-semibold block text-slate-800">Verified Appointment Booking</span>
+              <span className="text-[11px] text-slate-500">
+                Your account connects appointments directly to your personal medical file for real-time status updates.
               </span>
             </div>
           </div>
@@ -319,7 +401,7 @@ export const AuthModal: React.FC = () => {
                       setErrorMsg('');
                       setSuggestRegister(false);
                     }}
-                    className="px-2.5 py-1 bg-teal-600 hover:bg-teal-700 text-white font-bold text-[11px] rounded-lg transition-colors shadow-xs shrink-0 flex items-center gap-1"
+                    className="px-2.5 py-1 bg-teal-600 hover:bg-teal-700 text-white font-bold text-[11px] rounded-lg transition-colors shadow-xs shrink-0 flex items-center gap-1 cursor-pointer"
                   >
                     <span>Register Account with this Email</span>
                     <ArrowRight className="w-3 h-3" />
@@ -355,7 +437,7 @@ export const AuthModal: React.FC = () => {
                   <button
                     type="button"
                     onClick={handleCopyDomain}
-                    className="ml-auto px-2 py-0.5 bg-amber-100 hover:bg-amber-200 text-amber-900 font-sans font-semibold text-[10px] rounded flex items-center gap-1 transition-colors shrink-0"
+                    className="ml-auto px-2 py-0.5 bg-amber-100 hover:bg-amber-200 text-amber-900 font-sans font-semibold text-[10px] rounded flex items-center gap-1 transition-colors shrink-0 cursor-pointer"
                   >
                     {copiedDomain ? (
                       <>
@@ -375,7 +457,7 @@ export const AuthModal: React.FC = () => {
                   href="https://console.firebase.google.com/project/wecare-hospitals-9892d/authentication/settings"
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="px-3 py-1.5 bg-amber-600 hover:bg-amber-700 text-white font-semibold text-[11px] rounded-lg flex items-center gap-1.5 transition-colors shadow-xs shrink-0"
+                  className="px-3 py-1.5 bg-amber-600 hover:bg-amber-700 text-white font-semibold text-[11px] rounded-lg flex items-center gap-1.5 transition-colors shadow-xs shrink-0 cursor-pointer"
                 >
                   <span>Open Settings</span>
                   <ExternalLink className="w-3 h-3" />
@@ -390,9 +472,9 @@ export const AuthModal: React.FC = () => {
                     setUnauthorizedDomain(null);
                     setErrorMsg('');
                   }}
-                  className="text-teal-700 hover:text-teal-900 font-bold transition-colors"
+                  className="text-teal-700 hover:text-teal-900 font-bold transition-colors cursor-pointer"
                 >
-                  Use Email & Password below &darr;
+                  Use 1-Click Access or Email below &darr;
                 </button>
               </div>
             </div>
@@ -403,7 +485,7 @@ export const AuthModal: React.FC = () => {
             type="button"
             onClick={handleGoogleAuth}
             disabled={loading}
-            className="w-full py-2.5 px-4 bg-white hover:bg-slate-50 text-slate-700 text-xs sm:text-sm font-semibold rounded-xl border border-slate-300 shadow-xs flex items-center justify-center gap-3 transition-colors active:scale-98 disabled:opacity-60"
+            className="w-full py-2.5 px-4 bg-white hover:bg-slate-50 text-slate-700 text-xs sm:text-sm font-semibold rounded-xl border border-slate-300 shadow-xs flex items-center justify-center gap-3 transition-colors active:scale-98 disabled:opacity-60 cursor-pointer"
           >
             <svg className="w-4 h-4" viewBox="0 0 24 24">
               <path
@@ -429,13 +511,13 @@ export const AuthModal: React.FC = () => {
           <div className="relative flex items-center justify-center">
             <div className="border-t border-slate-200 w-full" />
             <span className="bg-white px-3 text-[11px] font-medium text-slate-400 uppercase tracking-wider absolute">
-              or with email
+              or with email & password
             </span>
           </div>
 
           {/* Form Content */}
           {isForgotPassword ? (
-            <form onSubmit={handlePasswordReset} className="space-y-4">
+            <form onSubmit={handlePasswordReset} className="space-y-4" autoComplete="off">
               {resetSuccessMsg ? (
                 <div className="p-3.5 bg-emerald-50 border border-emerald-200 rounded-xl text-xs text-emerald-800 space-y-2.5">
                   <div className="flex items-start gap-2">
@@ -449,7 +531,7 @@ export const AuthModal: React.FC = () => {
                       setResetSuccessMsg('');
                       setErrorMsg('');
                     }}
-                    className="w-full mt-2 py-2 px-3 bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs rounded-lg transition-colors"
+                    className="w-full mt-2 py-2 px-3 bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs rounded-lg transition-colors cursor-pointer"
                   >
                     Back to Sign In
                   </button>
@@ -458,7 +540,7 @@ export const AuthModal: React.FC = () => {
                 <>
                   <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-700">
                     <span className="font-semibold block mb-0.5">Reset Patient Password</span>
-                    <span>Enter your registered email address to receive a password reset link.</span>
+                    <span>Enter your registered email address to receive a secure password reset link.</span>
                   </div>
 
                   <div>
@@ -481,7 +563,7 @@ export const AuthModal: React.FC = () => {
                   <button
                     type="submit"
                     disabled={resetLoading}
-                    className="w-full py-2.5 px-4 bg-teal-600 hover:bg-teal-700 text-white text-xs sm:text-sm font-bold rounded-xl shadow-md transition-all flex items-center justify-center gap-2 active:scale-98 disabled:opacity-60"
+                    className="w-full py-2.5 px-4 bg-teal-600 hover:bg-teal-700 text-white text-xs sm:text-sm font-bold rounded-xl shadow-md transition-all flex items-center justify-center gap-2 active:scale-98 disabled:opacity-60 cursor-pointer"
                   >
                     {resetLoading ? (
                       <>
@@ -504,7 +586,7 @@ export const AuthModal: React.FC = () => {
                         setErrorMsg('');
                         setResetSuccessMsg('');
                       }}
-                      className="text-xs text-teal-700 hover:text-teal-900 font-semibold"
+                      className="text-xs text-teal-700 hover:text-teal-900 font-semibold cursor-pointer"
                     >
                       &larr; Back to Sign In
                     </button>
@@ -513,7 +595,7 @@ export const AuthModal: React.FC = () => {
               )}
             </form>
           ) : activeTab === 'signin' ? (
-            <form onSubmit={handleSignIn} className="space-y-4" autoComplete="off">
+            <form onSubmit={handleSignIn} className="space-y-3.5" autoComplete="off">
               <div>
                 <label className="block text-xs font-semibold text-slate-700 mb-1">
                   Email Address
@@ -522,10 +604,11 @@ export const AuthModal: React.FC = () => {
                   <Mail className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
                   <input
                     type="email"
-                    name="auth_email_input"
+                    name="wecare_patient_user"
+                    id="wecare_patient_user"
                     autoComplete="off"
                     required
-                    placeholder="patient@example.com"
+                    placeholder="patient@wecare.org"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     className="w-full pl-9 pr-3 py-2 text-xs sm:text-sm rounded-xl border border-slate-300 text-slate-900 placeholder:text-slate-400 focus:outline-hidden focus:border-teal-500 focus:ring-1 focus:ring-teal-500"
@@ -545,7 +628,7 @@ export const AuthModal: React.FC = () => {
                       setErrorMsg('');
                       setResetSuccessMsg('');
                     }}
-                    className="text-[11px] text-teal-600 hover:text-teal-800 font-medium transition-colors"
+                    className="text-[11px] text-teal-600 hover:text-teal-800 font-medium transition-colors cursor-pointer"
                   >
                     Forgot password?
                   </button>
@@ -554,7 +637,8 @@ export const AuthModal: React.FC = () => {
                   <Lock className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
                   <input
                     type={showPassword ? 'text' : 'password'}
-                    name="auth_password_input"
+                    name="wecare_patient_secret"
+                    id="wecare_patient_secret"
                     autoComplete="new-password"
                     required
                     placeholder="••••••••"
@@ -565,17 +649,45 @@ export const AuthModal: React.FC = () => {
                   <button
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3 top-2.5 text-slate-400 hover:text-slate-600"
+                    className="absolute right-3 top-2.5 text-slate-400 hover:text-slate-600 cursor-pointer"
                   >
                     {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                   </button>
                 </div>
               </div>
 
+              {/* Demo Credentials Quick-Fill and Display */}
+              <div className="p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs flex items-center justify-between gap-2">
+                <div className="text-[11px] text-slate-600 leading-tight">
+                  <span>Demo: </span>
+                  <span className="font-mono font-bold text-teal-800">patient@wecare.org</span>
+                  <span className="text-slate-400"> / </span>
+                  <span className="font-mono font-bold text-teal-800">WecarePatient2026!</span>
+                </div>
+                <div className="flex items-center gap-2 shrink-0">
+                  <button
+                    type="button"
+                    onClick={handleFillDemoPatient}
+                    className="text-[11px] font-bold text-teal-700 hover:text-teal-900 underline cursor-pointer"
+                  >
+                    Fill Demo
+                  </button>
+                  {(email || password) && (
+                    <button
+                      type="button"
+                      onClick={handleClearForm}
+                      className="text-[11px] text-slate-400 hover:text-slate-600 cursor-pointer"
+                    >
+                      Clear
+                    </button>
+                  )}
+                </div>
+              </div>
+
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full py-2.5 px-4 bg-teal-600 hover:bg-teal-700 text-white text-xs sm:text-sm font-bold rounded-xl shadow-md shadow-teal-600/20 transition-all flex items-center justify-center gap-2 active:scale-98 disabled:opacity-60"
+                className="w-full py-2.5 px-4 bg-teal-600 hover:bg-teal-700 text-white text-xs sm:text-sm font-bold rounded-xl shadow-md shadow-teal-600/20 transition-all flex items-center justify-center gap-2 active:scale-98 disabled:opacity-60 cursor-pointer"
               >
                 {loading ? (
                   <>
@@ -595,14 +707,47 @@ export const AuthModal: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => handleTabSwitch('signup')}
-                  className="text-teal-700 font-semibold hover:underline"
+                  className="text-teal-700 font-semibold hover:underline cursor-pointer"
                 >
                   Create one now
                 </button>
               </p>
             </form>
           ) : (
-            <form onSubmit={handleSignUp} className="space-y-3.5">
+            <form onSubmit={handleSignUp} className="space-y-3.5" autoComplete="off">
+              {emailAlreadyInUse && (
+                <div className="p-3 bg-amber-50 border border-amber-300 rounded-xl text-xs space-y-2">
+                  <div className="font-semibold text-amber-900 flex items-center gap-1.5">
+                    <AlertCircle className="w-4 h-4 text-amber-600 shrink-0" />
+                    <span>This email is already registered in WECare</span>
+                  </div>
+                  <p className="text-[11px] text-amber-800 leading-relaxed">
+                    An account with this email already exists. You can sign in with your password, or request a password reset email if you haven't set a password yet.
+                  </p>
+                  <div className="flex flex-wrap items-center gap-2 pt-1">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setActiveTab('signin');
+                        setErrorMsg('');
+                        setEmailAlreadyInUse(false);
+                      }}
+                      className="px-3 py-1.5 bg-teal-600 hover:bg-teal-700 text-white font-bold text-xs rounded-lg shadow-xs cursor-pointer"
+                    >
+                      Switch to Sign In
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleDirectPasswordReset(email)}
+                      disabled={resetLoading}
+                      className="px-3 py-1.5 bg-amber-100 hover:bg-amber-200 text-amber-900 font-semibold text-xs rounded-lg border border-amber-300 cursor-pointer"
+                    >
+                      {resetLoading ? 'Sending link...' : 'Send Password Reset Link'}
+                    </button>
+                  </div>
+                </div>
+              )}
+
               <div>
                 <label className="block text-xs font-semibold text-slate-700 mb-1">
                   Full Name (Patient)
@@ -611,6 +756,9 @@ export const AuthModal: React.FC = () => {
                   <User className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
                   <input
                     type="text"
+                    name="wecare_reg_fullname"
+                    id="wecare_reg_fullname"
+                    autoComplete="off"
                     required
                     placeholder="e.g. John Doe"
                     value={name}
@@ -629,6 +777,9 @@ export const AuthModal: React.FC = () => {
                     <Mail className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
                     <input
                       type="email"
+                      name="wecare_reg_email"
+                      id="wecare_reg_email"
+                      autoComplete="off"
                       required
                       placeholder="patient@mail.com"
                       value={email}
@@ -646,6 +797,9 @@ export const AuthModal: React.FC = () => {
                     <Phone className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
                     <input
                       type="tel"
+                      name="wecare_reg_phone"
+                      id="wecare_reg_phone"
+                      autoComplete="off"
                       required
                       placeholder="+1 (555) 019-2834"
                       value={phone}
@@ -665,6 +819,9 @@ export const AuthModal: React.FC = () => {
                     <Lock className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
                     <input
                       type={showPassword ? 'text' : 'password'}
+                      name="wecare_reg_pwd"
+                      id="wecare_reg_pwd"
+                      autoComplete="new-password"
                       required
                       minLength={6}
                       placeholder="••••••••"
@@ -683,6 +840,9 @@ export const AuthModal: React.FC = () => {
                     <Lock className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
                     <input
                       type={showPassword ? 'text' : 'password'}
+                      name="wecare_reg_pwd_confirm"
+                      id="wecare_reg_pwd_confirm"
+                      autoComplete="new-password"
                       required
                       minLength={6}
                       placeholder="••••••••"
@@ -697,7 +857,7 @@ export const AuthModal: React.FC = () => {
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full mt-2 py-2.5 px-4 bg-teal-600 hover:bg-teal-700 text-white text-xs sm:text-sm font-bold rounded-xl shadow-md shadow-teal-600/20 transition-all flex items-center justify-center gap-2 active:scale-98 disabled:opacity-60"
+                className="w-full mt-2 py-2.5 px-4 bg-teal-600 hover:bg-teal-700 text-white text-xs sm:text-sm font-bold rounded-xl shadow-md shadow-teal-600/20 transition-all flex items-center justify-center gap-2 active:scale-98 disabled:opacity-60 cursor-pointer"
               >
                 {loading ? (
                   <>
@@ -717,7 +877,7 @@ export const AuthModal: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => handleTabSwitch('signin')}
-                  className="text-teal-700 font-semibold hover:underline"
+                  className="text-teal-700 font-semibold hover:underline cursor-pointer"
                 >
                   Sign in here
                 </button>
